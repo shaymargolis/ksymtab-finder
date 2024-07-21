@@ -43,8 +43,8 @@ class KernelBlobFile():
         "tcp_md5_hash_key",
     ]
 
-    def __init__(self, filename, bitsize):
-        self.endianess = "LE"
+    def __init__(self, filename, bitsize, endianess="LE"):
+        self.endianess = endianess
         self.bitsize = bitsize
 
         self.bytes = int(self.bitsize/8)

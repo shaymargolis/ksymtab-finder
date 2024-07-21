@@ -4,12 +4,14 @@
 import sys
 import re
 import struct
+import click
+
 from binascii import unhexlify
 from kernel_accessor import KernelBlobFile
 
 class KsymtabFinder(KernelBlobFile):
-    def __init__(self, filename, bitsize):
-        super().__init__(filename, bitsize)
+    def __init__(self, filename, bitsize, endianess):
+        super().__init__(filename, bitsize, endianess)
 
     def find_all_ends_with_hex_regular(self, hexstr):
         """
@@ -82,7 +84,7 @@ class KsymtabFinder(KernelBlobFile):
         with the same page offset as the string, and this is the only one - 
         this must be the ksymtab's string reference. 
         """
-        
+
         for ksymtab_symbol in self.KSYMTAB_SYMBOLS:
             matches = list(re.finditer(b"\0"+ksymtab_symbol.encode()+b"\0", self.kernel))
             if len(matches) > 1 or len(matches) == 0:
@@ -148,11 +150,12 @@ class KsymtabFinder(KernelBlobFile):
         return res
 
 
-if __name__ == "__main__":
-    filename = sys.argv[1]
-    bitsize = int(sys.argv[2])
-
-    finder = KsymtabFinder(filename, bitsize)
+@click.command()
+@click.argument('filename')
+@click.argument('bitsize', type=int)
+@click.option('--endianess', help='Architecture endianess (LE/BE)', default="LE", show_default=True)
+def find_ksymtab(filename, bitsize, endianess):
+    finder = KsymtabFinder(filename, bitsize, endianess)
     result = finder.find_ksymtab()
     if result is None:
         raise Exception("KSYMTAB was not found")
@@ -161,3 +164,6 @@ if __name__ == "__main__":
     symbols = finder.parse_ksymtab(ksymtab, reloc_addr)
 
     print(symbols)
+
+if __name__ == '__main__':
+    find_ksymtab()

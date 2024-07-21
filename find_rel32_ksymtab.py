@@ -4,12 +4,14 @@
 import sys
 import re
 import struct
+import click
+
 from binascii import unhexlify
 from kernel_accessor import KernelBlobFile
 
 class Rel32KsymtabFinder(KernelBlobFile):
-    def __init__(self, filename, bitsize):
-        super().__init__(filename, bitsize)
+    def __init__(self, filename, bitsize, endianess):
+        super().__init__(filename, bitsize, endianess)
 
     def get_rel32_matches(self, true_index):
         """
@@ -86,11 +88,13 @@ class Rel32KsymtabFinder(KernelBlobFile):
 
         return res
 
-if __name__ == "__main__":
-    filename = sys.argv[1]
-    bitsize = int(sys.argv[2])
 
-    finder = Rel32KsymtabFinder(filename, bitsize)
+@click.command()
+@click.argument('filename')
+@click.argument('bitsize', type=int)
+@click.option('--endianess', help='Architecture endianess (LE/BE)', default="LE", show_default=True)
+def find_rel32_ksymtab(filename, bitsize, endianess):
+    finder = Rel32KsymtabFinder(filename, bitsize, endianess)
     ksymtab = finder.find_ksymtab()
     if ksymtab is None:
         raise Exception("KSYMTAB was not found")
@@ -98,3 +102,6 @@ if __name__ == "__main__":
     symbols = finder.parse_ksymtab(ksymtab)
 
     print(symbols)
+
+if __name__ == '__main__':
+    find_rel32_ksymtab()
