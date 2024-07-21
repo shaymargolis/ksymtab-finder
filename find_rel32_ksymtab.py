@@ -12,6 +12,14 @@ class Rel32KsymtabFinder(KernelBlobFile):
         super().__init__(filename, bitsize)
 
     def get_rel32_matches(self, true_index):
+        """
+        Returns all addresses A in the memory that statifsfies
+        
+        A+*A = true_index (Taken from 
+                           offset_to_ptr()@include/linux/compiler.h 
+                           - in the linux kernel)
+        """
+
         matches = []
 
         for i in range(0, len(self.kernel), 4):
@@ -22,6 +30,16 @@ class Rel32KsymtabFinder(KernelBlobFile):
         return matches
 
     def find_ksymtab(self):
+        """
+        Iterates over all KSYMTAB_SYMBOLS. Then for each string searches the memory
+        for the rel32 match of the string: For X location of the string in the memory,
+        An address A that statisfies the following:
+
+        A+*A = X (Taken from offset_to_ptr()@include/linux/compiler.h - in the linux kernel)
+
+        If there is only one occurence - This the ksymtab rel32 reference of the string!
+        """
+
         REL32_BYTE_SIZE = 4
 
         for ksymtab_symbol in self.KSYMTAB_SYMBOLS:

@@ -12,6 +12,17 @@ class KsymtabFinder(KernelBlobFile):
         super().__init__(filename, bitsize)
 
     def find_all_ends_with_hex_regular(self, hexstr):
+        """
+        Finds all occurences of WORD sized integers, that end with
+        hexstr. For example, if hexstr is BABE
+        the search will return locations of:
+            0xFFFFBABE
+                0xBABE
+            0x8000BABE
+
+        hexstr must be a EVEN length string
+        """
+
         if len(hexstr) % 2 != 0:
             raise Exception("Must use even length hexstr for find_all_ends_with_hex_regular!")
 
@@ -42,6 +53,17 @@ class KsymtabFinder(KernelBlobFile):
         return matches
 
     def find_all_ends_with_hex_nonregular(self, hexstr):
+        """
+        Finds all occurences of WORD sized integers, that end with
+        hexstr. For example, if hexstr is E7E
+        the search will return locations of:
+            0xFFFFFE7E
+                 0xE7E
+            0x80000E7E
+
+        hexstr can be odd-numbered string.
+        """
+
         if len(hexstr) % 2 == 0:
             # Regular find
             return self.find_all_ends_with_hex_regular(hexstr)
@@ -55,6 +77,12 @@ class KsymtabFinder(KernelBlobFile):
         return matches
 
     def find_ksymtab(self):
+        """
+        Iterates over all KSYMTAB_SYMBOLS. If finds a match, some address in the memory
+        with the same page offset as the string, and this is the only one - 
+        this must be the ksymtab's string reference. 
+        """
+        
         for ksymtab_symbol in self.KSYMTAB_SYMBOLS:
             matches = list(re.finditer(b"\0"+ksymtab_symbol.encode()+b"\0", self.kernel))
             if len(matches) > 1 or len(matches) == 0:
