@@ -12,6 +12,9 @@ class KsymtabFinder(KernelBlobFile):
         super().__init__(filename, bitsize)
 
     def find_all_ends_with_hex_regular(self, hexstr):
+        if len(hexstr) % 2 != 0:
+            raise Exception("Must use even length hexstr for find_all_ends_with_hex_regular!")
+
         parts = [hexstr[i:i+2] for i in range(0, len(hexstr), 2)]
         if self.endianess == "LE":
             parts = list(reversed(parts))
@@ -26,7 +29,15 @@ class KsymtabFinder(KernelBlobFile):
             match = self.kernel.find(lookup_bytes, match+1)
 
         if self.endianess == "BE":
-            raise Exception("You have to fixup the indexes!")
+            # Fix the searches to the beginning of the number
+            # For example, when searching for "e7e7"
+            # and getting the result ff ff e7 e7
+            # we will have a point to 0xe7e7 instead of 0xffffe7e7.
+            
+            byte_count = int(len(hexstr)/2)
+            byte_fix = self.bytes - byte_count
+
+            matches = list(map(lambda x: x-byte_fix, matches))
 
         return matches
 
