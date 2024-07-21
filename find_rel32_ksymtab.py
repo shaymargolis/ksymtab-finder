@@ -43,21 +43,6 @@ class Rel32KsymtabFinder(KernelBlobFile):
 
             return rel32_match
 
-            for i in range(20):
-                if i%3==1:
-                    continue
-                addr = rel32_match + REL32_BYTE_SIZE * i
-                found_word = self.get_long(addr, signed=True)
-
-                print(
-                    "\t>>",
-                    ksymtab_symbol,
-                    i,
-                    hex(found_word + addr),
-                    hex(self.get_long(found_word + addr)),
-                    self.get_string(found_word + addr)
-                )
-
         # Not found
         return None
 

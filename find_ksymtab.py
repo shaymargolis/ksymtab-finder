@@ -94,20 +94,6 @@ class KsymtabFinder(KernelBlobFile):
 
             return results[0], reloc_addr
 
-            for i in range(20):
-                if i%3==1:
-                    continue
-                found_word = self.get_word(results[0] + self.bytes * i)
-
-                print(
-                    "\t>>",
-                    ksymtab_symbol,
-                    i,
-                    hex(found_word),
-                    hex(self.get_word(found_word - reloc_addr)),
-                    self.get_string(found_word - reloc_addr)
-                )
-
         # Not found
         return None
 
