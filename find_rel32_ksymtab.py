@@ -58,6 +58,9 @@ class Rel32KsymtabFinder(KernelBlobFile):
                     self.get_string(found_word + addr)
                 )
 
+        # Not found
+        return None
+
     def _parse_ksymtab(self, address, direction=1):
         REL32_BYTE_SIZE = 4
 
@@ -86,6 +89,9 @@ if __name__ == "__main__":
 
     finder = Rel32KsymtabFinder(filename, bitsize)
     ksymtab = finder.find_ksymtab()
+    if ksymtab is None:
+        raise Exception("KSYMTAB was not found")
+
     symbols = finder.parse_ksymtab(ksymtab)
 
     print(symbols)

@@ -33,7 +33,7 @@ class KsymtabFinder(KernelBlobFile):
             # For example, when searching for "e7e7"
             # and getting the result ff ff e7 e7
             # we will have a point to 0xe7e7 instead of 0xffffe7e7.
-            
+
             byte_count = int(len(hexstr)/2)
             byte_fix = self.bytes - byte_count
 
@@ -108,6 +108,9 @@ class KsymtabFinder(KernelBlobFile):
                     self.get_string(found_word - reloc_addr)
                 )
 
+        # Not found
+        return None
+
     def _parse_ksymtab(self, address, reloc_addr, direction=1):
         addresses = {}
 
@@ -136,7 +139,11 @@ if __name__ == "__main__":
     bitsize = int(sys.argv[2])
 
     finder = KsymtabFinder(filename, bitsize)
-    ksymtab, reloc_addr = finder.find_ksymtab()
+    result = finder.find_ksymtab()
+    if result is None:
+        raise Exception("KSYMTAB was not found")
+
+    ksymtab, reloc_addr = result
     symbols = finder.parse_ksymtab(ksymtab, reloc_addr)
 
     print(symbols)
