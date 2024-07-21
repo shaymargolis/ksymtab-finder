@@ -128,6 +128,9 @@ class KsymtabFinder(KernelBlobFile):
         return None
 
     def _parse_ksymtab(self, address, reloc_addr, direction=1):
+        # TODO: This is (2*REL32_BYTE_SIZE) in older kernel versions
+        STRUCT_KERNEL_SYMBOL_SIZE = 3 * self.bytes
+
         addresses = {}
 
         found_word = self.get_word(address)
@@ -138,7 +141,7 @@ class KsymtabFinder(KernelBlobFile):
             value = self.get_word(address - self.bytes)
             addresses[value] = self.get_string(found_word - reloc_addr)
 
-            address += direction * 3 * self.bytes
+            address += direction * STRUCT_KERNEL_SYMBOL_SIZE
             found_word = self.get_word(address)
 
         return addresses

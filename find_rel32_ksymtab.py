@@ -68,6 +68,8 @@ class Rel32KsymtabFinder(KernelBlobFile):
 
     def _parse_ksymtab(self, address, direction=1):
         REL32_BYTE_SIZE = 4
+        # TODO: This is (2*REL32_BYTE_SIZE) in older kernel versions
+        STRUCT_KERNEL_SYMBOL_SIZE = 3 * REL32_BYTE_SIZE
 
         addresses = {}
 
@@ -77,7 +79,7 @@ class Rel32KsymtabFinder(KernelBlobFile):
             value = self.get_long(address - REL32_BYTE_SIZE, signed=True)
             addresses[value + address - REL32_BYTE_SIZE] = self.get_string(address + found_word)
 
-            address += direction * 3 * REL32_BYTE_SIZE
+            address += direction * STRUCT_KERNEL_SYMBOL_SIZE
             found_word = self.get_long(address, signed=True)
 
         return addresses
