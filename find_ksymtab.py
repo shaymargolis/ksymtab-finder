@@ -12,8 +12,8 @@ from kernel_accessor import KernelBlobFile
 
 
 class KsymtabFinder(KernelBlobFile):
-    def __init__(self, filename, bitsize, endianess):
-        super().__init__(filename, bitsize, endianess)
+    def __init__(self, filename, bitsize, linux_ver, endianess):
+        super().__init__(filename, bitsize, linux_ver, endianess)
 
         arch_pointer_type = self.get_pointer_type()
 
@@ -22,10 +22,8 @@ class KsymtabFinder(KernelBlobFile):
             "name" / arch_pointer_type,
         ]
 
-        # if linux_kernel_version >= (5, 3, 0):
-        if True:
+        if self.linux_ver >= (5, 3, 0):
             fields += ["namespace" / arch_pointer_type]
-
 
         self.KernelSymbol = Struct(
             *fields
@@ -172,12 +170,23 @@ class KsymtabFinder(KernelBlobFile):
         return addresses
         
     def parse_ksymtab(self, address, reloc_addr):
+        
+        # Get offset of value instead of name inside of kernel_symbol
         ksymtab_address = address - self.bytes
 
         res = self._parse_ksymtab(ksymtab_address, reloc_addr, direction=1)
         res.update(self._parse_ksymtab(ksymtab_address, reloc_addr, direction=-1))
 
         return res
+
+    def find_and_parse_ksymtab(self):
+        result = self.find_ksymtab()
+        if result is None:
+            raise Exception("KSYMTAB was not found")
+
+        address, reloc_addr = result
+
+        return self.parse_ksymtab(address, reloc_addr)
 
 
 @click.command()
@@ -186,12 +195,7 @@ class KsymtabFinder(KernelBlobFile):
 @click.option('--endianess', help='Architecture endianess (LE/BE)', default="LE", show_default=True)
 def find_ksymtab(filename, bitsize, endianess):
     finder = KsymtabFinder(filename, bitsize, endianess)
-    result = finder.find_ksymtab()
-    if result is None:
-        raise Exception("KSYMTAB was not found")
-
-    ksymtab, reloc_addr = result
-    symbols = finder.parse_ksymtab(ksymtab, reloc_addr)
+    symbols = finder.find_and_parse_ksymtab()
 
     print(symbols)
 

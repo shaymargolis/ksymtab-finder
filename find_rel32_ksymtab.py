@@ -11,8 +11,8 @@ from binascii import unhexlify
 from kernel_accessor import KernelBlobFile
 
 class Rel32KsymtabFinder(KernelBlobFile):
-    def __init__(self, filename, bitsize, endianess):
-        super().__init__(filename, bitsize, endianess)
+    def __init__(self, filename, bitsize, linux_ver, endianess):
+        super().__init__(filename, bitsize, linux_ver, endianess)
 
         arch_long_type = self.get_long_type(signed=True)
 
@@ -21,10 +21,8 @@ class Rel32KsymtabFinder(KernelBlobFile):
             "name" / arch_long_type,
         ]
 
-        # if linux_kernel_version >= (5, 3, 0):
-        if True:
+        if self.linux_ver >= (5, 3, 0):
             fields += ["namespace" / arch_long_type]
-
 
         self.KernelSymbol = Struct(
             *fields
@@ -117,12 +115,22 @@ class Rel32KsymtabFinder(KernelBlobFile):
     def parse_ksymtab(self, address):
         REL32_BYTE_SIZE = 4
 
+        # Get offset of value instead of name inside of kernel_symbol
         ksymtab_address = address - REL32_BYTE_SIZE
 
         res = self._parse_ksymtab(ksymtab_address, direction=1)
         res.update(self._parse_ksymtab(ksymtab_address, direction=-1))
 
         return res
+
+    def find_and_parse_ksymtab(self):
+        REL32_BYTE_SIZE = 4
+
+        address = self.find_ksymtab()
+        if address is None:
+            raise Exception("KSYMTAB was not found")
+
+        return self.parse_ksymtab(address)
 
 
 @click.command()
@@ -131,11 +139,7 @@ class Rel32KsymtabFinder(KernelBlobFile):
 @click.option('--endianess', help='Architecture endianess (LE/BE)', default="LE", show_default=True)
 def find_rel32_ksymtab(filename, bitsize, endianess):
     finder = Rel32KsymtabFinder(filename, bitsize, endianess)
-    ksymtab = finder.find_ksymtab()
-    if ksymtab is None:
-        raise Exception("KSYMTAB was not found")
-
-    symbols = finder.parse_ksymtab(ksymtab)
+    symbols = finder.find_and_parse_ksymtab()
 
     print(symbols)
 
