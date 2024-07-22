@@ -5,6 +5,7 @@ import sys
 import re
 import struct
 import click
+from construct import Struct
 
 from binascii import unhexlify
 from kernel_accessor import KernelBlobFile
@@ -12,6 +13,26 @@ from kernel_accessor import KernelBlobFile
 class Rel32KsymtabFinder(KernelBlobFile):
     def __init__(self, filename, bitsize, endianess):
         super().__init__(filename, bitsize, endianess)
+
+        arch_long_type = self.get_long_type(signed=True)
+
+        fields = [
+            "value" / arch_long_type,
+            "name" / arch_long_type,
+        ]
+
+        # if linux_kernel_version >= (5, 3, 0):
+        if True:
+            fields += ["namespace" / arch_long_type]
+
+
+        self.KernelSymbol = Struct(
+            *fields
+        )
+
+    def _get_rel32_value(self, address):
+        val = self.get_long(address, signed=True)
+        return val + address
 
     def get_rel32_matches(self, true_index):
         """
@@ -25,8 +46,7 @@ class Rel32KsymtabFinder(KernelBlobFile):
         matches = []
 
         for i in range(0, len(self.kernel), 4):
-            val = self.get_long(i, signed=True)
-            if i + val == true_index:
+            if self._get_rel32_value(i) == true_index:
                 matches.append(i)
         
         return matches
@@ -66,27 +86,41 @@ class Rel32KsymtabFinder(KernelBlobFile):
         # Not found
         return None
 
-    def _parse_ksymtab(self, address, direction=1):
+    def _get_kernel_symbol(self, x):
         REL32_BYTE_SIZE = 4
-        # TODO: This is (2*REL32_BYTE_SIZE) in older kernel versions
-        STRUCT_KERNEL_SYMBOL_SIZE = 3 * REL32_BYTE_SIZE
 
+        # Parse the struct at the location
+        data = self.kernel[x:x+self.KernelSymbol.sizeof()]
+        result = self.KernelSymbol.parse(data)
+
+        result["value_addr"] = self._get_rel32_value(x)
+        result["name_addr"] = self._get_rel32_value(x + REL32_BYTE_SIZE)
+
+        # Retrieve the name string from memory
+        result["name_string"] = self.get_string(result["name_addr"])
+
+        return result
+
+    def _parse_ksymtab(self, address, direction=1):
         addresses = {}
 
-        found_word = self.get_long(address, signed=True)
+        kernel_symbol = self._get_kernel_symbol(address)
 
-        while self.get_string(address + found_word):
-            value = self.get_long(address - REL32_BYTE_SIZE, signed=True)
-            addresses[value + address - REL32_BYTE_SIZE] = self.get_string(address + found_word)
+        while kernel_symbol["name_string"]:
+            addresses[kernel_symbol["value_addr"]] = kernel_symbol["name_string"]
 
-            address += direction * STRUCT_KERNEL_SYMBOL_SIZE
-            found_word = self.get_long(address, signed=True)
+            address += direction * self.KernelSymbol.sizeof()
+            kernel_symbol = self._get_kernel_symbol(address)
 
         return addresses
         
     def parse_ksymtab(self, address):
-        res = self._parse_ksymtab(address, direction=1)
-        res.update(self._parse_ksymtab(address, direction=-1))
+        REL32_BYTE_SIZE = 4
+
+        ksymtab_address = address - REL32_BYTE_SIZE
+
+        res = self._parse_ksymtab(ksymtab_address, direction=1)
+        res.update(self._parse_ksymtab(ksymtab_address, direction=-1))
 
         return res
 

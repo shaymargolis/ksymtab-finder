@@ -4,7 +4,9 @@
 import sys
 import re
 import struct
+from construct import Struct, Int64ul, Int64ub, Int32ul, Int32ub, Int32sl, Int32sb
 from binascii import unhexlify
+
 
 class KernelBlobFile():
     KSYMTAB_SYMBOLS = [
@@ -53,6 +55,30 @@ class KernelBlobFile():
 
         with open(filename, "rb") as f:
             self.kernel = f.read()
+
+    def get_long_type(self, signed=False):
+        if self.endianess == "LE":
+            return Int32sl if signed else Int32ul
+
+        if self.endianess == "BE":
+            return Int32sb if signed else Int32ub
+
+        return None
+
+    def get_pointer_type(self):
+        if self.endianess == "LE":
+            if self.bitsize == 64:
+                return Int64ul
+            if self.bitsize == 32:
+                return Int32ul
+
+        if self.endianess == "BE":
+            if self.bitsize == 64:
+                return Int64ub
+            if self.bitsize == 32:
+                return Int32ub
+
+        return None
 
     def get_word(self, x):
         flag = "big"
