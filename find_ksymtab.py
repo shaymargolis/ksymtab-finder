@@ -187,17 +187,3 @@ class KsymtabFinder(KernelBlobFile):
         address, reloc_addr = result
 
         return self.parse_ksymtab(address, reloc_addr)
-
-
-@click.command()
-@click.argument('filename')
-@click.argument('bitsize', type=int)
-@click.option('--endianess', help='Architecture endianess (LE/BE)', default="LE", show_default=True)
-def find_ksymtab(filename, bitsize, endianess):
-    finder = KsymtabFinder(filename, bitsize, endianess)
-    symbols = finder.find_and_parse_ksymtab()
-
-    print(symbols)
-
-if __name__ == '__main__':
-    find_ksymtab()

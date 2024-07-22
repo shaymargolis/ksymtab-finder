@@ -131,17 +131,3 @@ class Rel32KsymtabFinder(KernelBlobFile):
             raise Exception("KSYMTAB was not found")
 
         return self.parse_ksymtab(address)
-
-
-@click.command()
-@click.argument('filename')
-@click.argument('bitsize', type=int)
-@click.option('--endianess', help='Architecture endianess (LE/BE)', default="LE", show_default=True)
-def find_rel32_ksymtab(filename, bitsize, endianess):
-    finder = Rel32KsymtabFinder(filename, bitsize, endianess)
-    symbols = finder.find_and_parse_ksymtab()
-
-    print(symbols)
-
-if __name__ == '__main__':
-    find_rel32_ksymtab()
