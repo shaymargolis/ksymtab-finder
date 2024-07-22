@@ -5,13 +5,31 @@ import sys
 import re
 import struct
 import click
+from construct import Struct
 
 from binascii import unhexlify
 from kernel_accessor import KernelBlobFile
 
+
 class KsymtabFinder(KernelBlobFile):
     def __init__(self, filename, bitsize, endianess):
         super().__init__(filename, bitsize, endianess)
+
+        arch_pointer_type = self.get_pointer_type()
+
+        fields = [
+            "value" / arch_pointer_type,
+            "name" / arch_pointer_type,
+        ]
+
+        # if linux_kernel_version >= (5, 3, 0):
+        if True:
+            fields += ["namespace" / arch_pointer_type]
+
+
+        self.KernelSymbol = Struct(
+            *fields
+        )
 
     def find_all_ends_with_hex_regular(self, hexstr):
         """
@@ -127,28 +145,37 @@ class KsymtabFinder(KernelBlobFile):
         # Not found
         return None
 
-    def _parse_ksymtab(self, address, reloc_addr, direction=1):
-        # TODO: This is (2*REL32_BYTE_SIZE) in older kernel versions
-        STRUCT_KERNEL_SYMBOL_SIZE = 3 * self.bytes
+    def _get_kernel_symbol(self, x, reloc_addr):
+        # Parse the struct at the location
+        data = self.kernel[x:x+self.KernelSymbol.sizeof()]
+        result = self.KernelSymbol.parse(data)
 
+        # Retrieve the name string from memory
+        result["name_string"] = self.get_string(result["name"] - reloc_addr)
+
+        return result
+
+    def _parse_ksymtab(self, address, reloc_addr, direction=1):
         addresses = {}
 
-        found_word = self.get_word(address)
+        kernel_symbol = self._get_kernel_symbol(address, reloc_addr)
 
-        print(hex(found_word), hex(reloc_addr))
+        print(hex(kernel_symbol["name"]), kernel_symbol["name_string"], hex(reloc_addr))
 
-        while self.get_string(found_word - reloc_addr):
-            value = self.get_word(address - self.bytes)
-            addresses[value] = self.get_string(found_word - reloc_addr)
+        while kernel_symbol["name_string"]:
+            value = kernel_symbol["value"]
+            addresses[value] = kernel_symbol["name_string"]
 
-            address += direction * STRUCT_KERNEL_SYMBOL_SIZE
-            found_word = self.get_word(address)
+            address += direction * self.KernelSymbol.sizeof()
+            kernel_symbol = self._get_kernel_symbol(address, reloc_addr)
 
         return addresses
         
     def parse_ksymtab(self, address, reloc_addr):
-        res = self._parse_ksymtab(address, reloc_addr, direction=1)
-        res.update(self._parse_ksymtab(address, reloc_addr, direction=-1))
+        ksymtab_address = address - self.bytes
+
+        res = self._parse_ksymtab(ksymtab_address, reloc_addr, direction=1)
+        res.update(self._parse_ksymtab(ksymtab_address, reloc_addr, direction=-1))
 
         return res
 
