@@ -3,6 +3,11 @@ from click import Choice
 
 from find_rel32_ksymtab import Rel32KsymtabFinder
 from find_ksymtab import KsymtabFinder
+from elf_creator import ELFCreator
+
+# class ELFCreator():
+#     def __init__(self, arch, bitsize, endianess, base_address, symbols):
+
 
 
 @click.command()
@@ -34,7 +39,22 @@ def ksymtab_finder(filename, bitsize, endianess, linux_ver_override, ksymtab_typ
 
     symbols = finder.find_and_parse_ksymtab()
 
-    print(symbols)
+    # Add base addr
+    base_address = 0x0
+    new_symbols = {}
+    for addr, sym in symbols.items():
+        new_symbols[base_address + addr] = sym
+
+    # print(symbols)
+    elf = ELFCreator(
+        "aarch64",
+        bitsize,
+        endianess,
+        base_address,
+        new_symbols
+    )
+
+    elf.create_elf(filename, filename+ ".elf")
 
 if __name__ == '__main__':
     ksymtab_finder()
