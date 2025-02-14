@@ -45,9 +45,10 @@ class KernelBlobFile():
         "tcp_md5_hash_key",
     ]
 
-    def __init__(self, filename, bitsize, endianess="LE"):
+    def __init__(self, filename, bitsize, linux_ver, endianess="LE"):
         self.endianess = endianess
         self.bitsize = bitsize
+        self.linux_ver = linux_ver
 
         self.bytes = int(self.bitsize/8)
         self.filename = filename
